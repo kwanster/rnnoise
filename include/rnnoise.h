@@ -55,6 +55,11 @@ RNNOISE_EXPORT void rnnoise_destroy(DenoiseState *st);
 
 RNNOISE_EXPORT float rnnoise_process_frame(DenoiseState *st, float *out, const float *in);
 
+RNNOISE_EXPORT void rnnoise_set_max_atten(float value);
+RNNOISE_EXPORT void rnnoise_set_init_max_atten(float value);
+RNNOISE_EXPORT float rnnoise_get_init_max_atten(void);
+RNNOISE_EXPORT void rnnoise_set_current_max_atten(DenoiseState *st, float value);
+
 #ifdef __cplusplus
 }
 #endif

@@ -70,6 +70,12 @@
 
 #define NB_FEATURES (NB_BANDS+3*NB_DELTA_CEPS+2)
 
+/* We don't allow max attenuation to be more than 80dB */
+#define MAX_ATTENUATION 0.000001f
+
+/* Default max attenuation user doesn't specify any other value */
+#define DEFAULT_MAX_ATTENUATION MAX_ATTENUATION
+
 
 #ifndef TRAINING
 #define TRAINING 0
@@ -79,6 +85,9 @@ static const opus_int16 eband5ms[] = {
 /*0  200 400 600 800  1k 1.2 1.4 1.6  2k 2.4 2.8 3.2  4k 4.8 5.6 6.8  8k 9.6 12k 15.6 20k*/
   0,  1,  2,  3,  4,  5,  6,  7,  8, 10, 12, 14, 16, 20, 24, 28, 34, 40, 48, 60, 78, 100
 };
+
+/* user max attenuation default to 10dB */
+static float init_max_attenuation = DEFAULT_MAX_ATTENUATION; 
 
 typedef struct {
     int init;
@@ -97,6 +106,7 @@ struct DenoiseState {
     int last_period;
     float mem_hp_x[2];
     float lastg[NB_BANDS];
+	float max_attenuation;
     RNNState rnn;
 };
 
@@ -304,6 +314,7 @@ size_t rnnoise_get_size() {
 
 int rnnoise_init(DenoiseState *st) {
   memset(st, 0, sizeof(*st));
+  st->max_attenuation = init_max_attenuation;
   return 0;
 }
 
@@ -540,28 +551,75 @@ float rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
     biquad(x, st->mem_hp_x, in, b_hp, a_hp, FRAME_SIZE);
     silence = compute_frame_features(st, input, P, Ex, Ep, Exp, features, x);
 
-    if (!silence) {
-        compute_rnn(&st->rnn, g, &vad_prob, features);
-        pitch_filter(input, P, Ex, Ep, Exp, g);
-        for (i = 0; i < NB_BANDS; i++) {
-            float alpha = .6f;
-            g[i] = MAX16(g[i], alpha * st->lastg[i]);
-            st->lastg[i] = g[i];
-        }
-        interp_band_gain(gf, g);
+	if (!silence) {
+		compute_rnn(&st->rnn, g, &vad_prob, features);
+		pitch_filter(input, P, Ex, Ep, Exp, g);
+		for (i = 0; i < NB_BANDS; i++) {
+			float alpha = .6f;
+			g[i] = MAX16(g[i], alpha * st->lastg[i]);
+			st->lastg[i] = g[i];
+		}
+		  /* Apply maximum attenuation (minimum value) */
+		float min = 1, mult;
+		for (i = 0; i < NB_BANDS; i++) {
+			if (g[i] < min) min = g[i];
+		}
+		if (min < st->max_attenuation) {
+			if (min < MAX_ATTENUATION)
+				min = MAX_ATTENUATION;
+			mult = (1.0f - st->max_attenuation) / (1.0f - min);
+			for (i = 0; i < NB_BANDS; i++) {
+				if (g[i] < MAX_ATTENUATION) g[i] = MAX_ATTENUATION;
+				g[i] = 1.0f - ((1.0f - g[i]) * mult);
+				st->lastg[i] = g[i];
+			}
+		}
+		interp_band_gain(gf, g);
 #if 1
-        for (i = 0; i < FREQ_SIZE; i++) {
-            input[i].real *= gf[i];
-            input[i].imag *= gf[i];
-        }
+		for (i = 0; i < FREQ_SIZE; i++) {
+			input[i].real *= gf[i];
+			input[i].imag *= gf[i];
+		}
 #endif
-    }
+	}
 
     frame_synthesis(st, out, input);
     rnnoise_free(input);
     rnnoise_free(P);
     rnnoise_free(x);
     return vad_prob;
+}
+
+/* This function sets the max attenuation to be used in rnnoise_init() */
+void rnnoise_set_init_max_atten(float max_atten_db)
+{
+	float current_max_attenuation = pow(10.0f, -max_atten_db / 10.0f);
+
+	/* Only allow max_attenuation between MAX_ATTENUATION to 1.0 */
+	if (current_max_attenuation > MAX_ATTENUATION &&
+		current_max_attenuation <= 1.0f) {
+		init_max_attenuation = current_max_attenuation;
+	}
+}
+
+/* This function sets the max attenuation to be used in rnnoise_init() */
+float rnnoise_get_init_max_atten(void)
+{
+	return init_max_attenuation;
+}
+
+/* This function changes the max attenuation on the fly */
+void rnnoise_set_current_max_atten(DenoiseState *st, float max_atten_db)
+{
+	float current_max_attenuation = pow(10.0f, -max_atten_db / 10.0f);
+
+	/* Only allow max_attenuation between MAX_ATTENUATION to 1.0 */
+	if (current_max_attenuation > 0.0f) {
+		if (current_max_attenuation > MAX_ATTENUATION &&
+			current_max_attenuation <= 1.0f) {
+			st->max_attenuation = current_max_attenuation;
+		}
+	}
 }
 
 #if TRAINING
@@ -736,3 +794,4 @@ int main(int argc, char **argv) {
 }
 
 #endif
+

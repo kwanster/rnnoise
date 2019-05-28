@@ -3,6 +3,7 @@
 #include "rnnoise.h"
 #include <stdlib.h>
 #include <stdint.h>
+#include <math.h>
 
 #define DR_MP3_IMPLEMENTATION
 
@@ -204,6 +205,7 @@ void denoise_proc(float *input, uint64_t sampleCount, uint32_t sampleRate, uint3
     }
     for (int i = 0; i < channels; i++) {
         sts[i] = rnnoise_create();
+
         if (sts[i] == NULL) {
             for (int x = 0; x < i; x++) {
                 if (sts[x]) {
@@ -218,6 +220,7 @@ void denoise_proc(float *input, uint64_t sampleCount, uint32_t sampleRate, uint3
     size_t frameStep = channels * perFrameSize;
     uint64_t frames = sampleCount / frameStep;
     uint64_t lastFrameSize = (sampleCount % frameStep) / channels;
+
     for (int i = 0; i < frames; ++i) {
         Resample_f32(input, frameBuffer, sampleRate, targetSampleRate,
                      perFrameSize, channels);
@@ -239,6 +242,13 @@ void denoise_proc(float *input, uint64_t sampleCount, uint32_t sampleRate, uint3
         for (int c = 0; c < channels; c++) {
             for (int k = 0; k < targetFrameSize; k++)
                 processBuffer[k] = frameBuffer[k * channels + c];
+/*
+** This is where to set the max_atten on the fly
+** Set max_atten to 0dB to turn off rnnoise (useful for real-time demo):
+**     rnnoise_set_current_max_atten(sts[i], 0.0f); 
+** Reset max_atten to initial value
+**     rnnoise_set_current_max_atten(sts[i], rnnoise_get_init_max_attenuation()); 
+*/				
             rnnoise_process_frame(sts[c], processBuffer, processBuffer);
             for (int k = 0; k < targetFrameSize; k++)
                 frameBuffer[k * channels + c] = processBuffer[k];
@@ -264,7 +274,7 @@ void rnnDeNoise(char *in_file, char *out_file) {
         double startTime = now();
         denoise_proc(buffer, sampleCount, sampleRate, channels);
         double time_interval = calcElapsed(startTime, now());
-        printf("time interval: %f ms\n ", (time_interval * 1000));
+        printf("Total processing time: %5.2f ms\n ", (time_interval * 1000));
         wavWrite_f32(out_file, buffer, sampleRate, (uint32_t) sampleCount, channels);
         free(buffer);
     }
@@ -272,23 +282,34 @@ void rnnDeNoise(char *in_file, char *out_file) {
 
 
 int main(int argc, char **argv) {
-    printf("Audio Noise Reduction\n");
-    printf("blog:http://cpuimage.cnblogs.com/\n");
-    printf("e-mail:gaozhihan@vip.qq.com\n");
+	float max_atten = 0.1f;
+	char *out_file;
+	char *in_file = argv[1];
+
+//    printf("\n***  Github rnnoise from J-M Valin et al\n");
+//    printf("blog:http://cpuimage.cnblogs.com/\n");
+//    printf("e-mail:gaozhihan@vip.qq.com\n");
 
     if (argc < 2) {
-        printf("usage:\n");
-        printf("./rnnoise input.wav\n");
-        printf("./rnnoise input.mp3\n");
-        printf("or\n");
-        printf("./rnnoise input.wav output.wav\n");
-        printf("./rnnoise input.mp3 output.wav\n");
+        printf("  usage:\n");
+        printf("  ./rnnoise_demo input.wav\n");
+        printf("  ./rnnoise_demo input.mp3\n");
+        printf("    or\n");
+        printf("  ./rnnoise_demo input.wav output.wav\n");
+        printf("  ./rnnoise_demo input.mp3 output.wav\n");
+        printf("    or\n");
+		printf("  ./rnnoise_demo input.wav output.wav 10 (for 10dB attenuation; default=%2.0f)\n", 
+			-10.0f*log10(rnnoise_get_init_max_atten()));
+		printf("  ./rnnoise_demo input.mp3 output.mp3 10 (for 10dB attenuation; default=%2.0f)\n", 
+			-10.0f*log10(rnnoise_get_init_max_atten()));
         return -1;
     }
-    char *in_file = argv[1];
+
     if (argc > 2) {
-        char *out_file = argv[2];
-        rnnDeNoise(in_file, out_file);
+		out_file = argv[2];
+		if (argc > 3) {
+			rnnoise_set_init_max_atten(atof(argv[3]));
+		}
     } else {
         char drive[3];
         char dir[256];
@@ -297,9 +318,8 @@ int main(int argc, char **argv) {
         char out_file[1024];
         splitpath(in_file, drive, dir, fname, ext);
         sprintf(out_file, "%s%s%s_out.wav", drive, dir, fname);
-        rnnDeNoise(in_file, out_file);
     }
-    printf("press any key to exit.\n");
-    getchar();
+
+	rnnDeNoise(in_file, out_file);
     return 0;
 }

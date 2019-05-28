@@ -1,6 +1,10 @@
-# RNNoise is a noise suppression library based on a recurrent neural network
+ # RNNoise is a noise suppression library based on a recurrent neural network
  - ref: https://github.com/xiph/rnnoise
  - ref: https://github.com/cpuimage/rnnoise
+ - ref: https://github.com/david8862/rnnoise
+ - ref: https://github.com/GregorR/rnnoise-nu
+
+ 
 
 ## Guide Doc
 * [RNNoise: Learning Noise Suppression](https://people.xiph.org/~jm/demo/rnnoise/)
@@ -19,8 +23,13 @@ provided as an example.
 # cmake ..
 # make
 ```
-
-It operates on wav and mp3 files, which can be used as:
+```To successfully make the demo executables in Visual Studio, do these two additional steps:
+# 1) Under rnnoise_demo to rnnoise and rnnoise_demo_simple proterty page:
+#       Add "rnnoise.lib"	to Linker->Input->Additional Dependencies or else there	appeapred to be	an unresolved Linker LNK2019 error
+# 2) Right mouse click rnnnoise_demo and rnnoise_demo_simple and select 
+#       Check "rnnoise_static" as a dependent libary of the demo main programs
+#
+It operates on wav and mp3 files, which can be used as: Build Dependencies->Project Dependencies
 ```shell
 # ./rnnoise_demo input.wav
 # ./rnnoise_demo input.mp3
