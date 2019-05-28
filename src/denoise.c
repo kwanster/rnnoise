@@ -23,7 +23,6 @@
    NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -665,9 +664,9 @@ int main(int argc, char **argv) {
     fprintf(stderr, "usage: %s <speech> <noise> <sample count> <output denoised>\n", argv[0]);
     return 1;
   }
-  f1 = fopen(argv[1], "r");
-  f2 = fopen(argv[2], "r");
-  fout = fopen(argv[4], "w");
+  f1 = fopen(argv[1], "rb");
+  f2 = fopen(argv[2], "rb");
+  fout = fopen(argv[4], "wb");
   for(i=0;i<150;i++) {
     short tmp[FRAME_SIZE];
     fread(tmp, sizeof(short), FRAME_SIZE, f2);

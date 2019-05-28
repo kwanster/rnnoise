@@ -25,11 +25,15 @@ provided as an example.
 ```
 ```To successfully make the demo executables in Visual Studio, do these two additional steps:
 # 1) Under rnnoise_demo to rnnoise and rnnoise_demo_simple proterty page:
-#       Add "rnnoise.lib"	to Linker->Input->Additional Dependencies or else there	appeapred to be	an unresolved Linker LNK2019 error
+#       Add "rnnoise.lib"	to Linker->Input->Additional Dependencies 
+#       or else there	appeapred to be	an unresolved Linker LNK2019 error
 # 2) Right mouse click rnnnoise_demo and rnnoise_demo_simple and select 
+#    
+Build Dependencies->Project Dependencies
 #       Check "rnnoise_static" as a dependent libary of the demo main programs
 #
-It operates on wav and mp3 files, which can be used as: Build Dependencies->Project Dependencies
+It operates on wav and mp3 files, which can be used as: 
+
 ```shell
 # ./rnnoise_demo input.wav
 # ./rnnoise_demo input.mp3
@@ -42,6 +46,11 @@ specify the output filename
 ```shell
 # ./rnnoise_demo input.wav output.wav
 # ./rnnoise_demo input.mp3 output.wav
+```
+specify the output filename and maximum attenuation
+```shell
+# ./rnnoise_demo input.wav output.wav 10 (10dB attenuation)
+# ./rnnoise_demo input.mp3 output.wav (default=60dB)
 ```
 
 ## Training Process
