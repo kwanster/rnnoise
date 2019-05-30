@@ -557,8 +557,8 @@ float rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
 			float alpha = .6f;
 			g[i] = MAX16(g[i], alpha * st->lastg[i]);
 
-      /* limit attenuation to max_attenuation (default = MAX_ATTENUATION) */
-      g[i] = MAX32(g[i], st->max_attenuation);
+     			/* limit attenuation to max_attenuation (default = MAX_ATTENUATION) */
+    			g[i] = MAX32(g[i], st->max_attenuation);
 
 			st->lastg[i] = g[i];
 		}
