@@ -556,30 +556,19 @@ float rnnoise_process_frame(DenoiseState *st, float *out, const float *in) {
 		for (i = 0; i < NB_BANDS; i++) {
 			float alpha = .6f;
 			g[i] = MAX16(g[i], alpha * st->lastg[i]);
+
+      /* limit attenuation to max_attenuation (default = MAX_ATTENUATION) */
+      g[i] = MAX32(g[i], st->max_attenuation);
+
 			st->lastg[i] = g[i];
 		}
-		  /* Apply maximum attenuation (minimum value) */
-		float min = 1, mult;
-		for (i = 0; i < NB_BANDS; i++) {
-			if (g[i] < min) min = g[i];
-		}
-		if (min < st->max_attenuation) {
-			if (min < MAX_ATTENUATION)
-				min = MAX_ATTENUATION;
-			mult = (1.0f - st->max_attenuation) / (1.0f - min);
-			for (i = 0; i < NB_BANDS; i++) {
-				if (g[i] < MAX_ATTENUATION) g[i] = MAX_ATTENUATION;
-				g[i] = 1.0f - ((1.0f - g[i]) * mult);
-				st->lastg[i] = g[i];
-			}
-		}
+
 		interp_band_gain(gf, g);
-#if 1
+    
 		for (i = 0; i < FREQ_SIZE; i++) {
 			input[i].real *= gf[i];
 			input[i].imag *= gf[i];
 		}
-#endif
 	}
 
     frame_synthesis(st, out, input);
